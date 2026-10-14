@@ -116,6 +116,12 @@ void quantize_row_tq2_0(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, 
     quantize_row_tq2_0_ref(x, y, k);
 }
 
+void quantize_row_tq2_0_g128(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
+    assert(k % QK_TQ2_0_G128 == 0);
+    block_tq2_0_g128 * GGML_RESTRICT y = vy;
+    quantize_row_tq2_0_g128_ref(x, y, k);
+}
+
 //===================================== Q8_K ==============================================
 
 void quantize_row_q8_K_generic(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k) {
@@ -557,6 +563,40 @@ void ggml_vec_dot_tq2_0_q8_K_generic(int n, float * GGML_RESTRICT s, size_t bs, 
         const float d = y[i].d * GGML_CPU_FP16_TO_FP32(x[i].d);
 
         sumf += (float) sumi * d;
+    }
+
+    *s = sumf;
+}
+
+// two G128 blocks per Q8_K block, each half with its own scale
+void ggml_vec_dot_tq2_0_g128_q8_K_generic(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
+    assert(nrc == 1);
+    assert(n % QK_K == 0);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+    const block_tq2_0_g128 * GGML_RESTRICT x = vx;
+    const block_q8_K       * GGML_RESTRICT y = vy;
+
+    const int nb = n / QK_K;
+    float sumf = 0.0f;
+
+    for (int i = 0; i < nb; ++i) {
+        float sumh = 0.0f;
+        for (int h = 0; h < 2; ++h) {
+            const block_tq2_0_g128 * xb = &x[2*i + h];
+            const int8_t           * q8 = y[i].qs + 128*h;
+            int32_t sumi = 0;
+            for (int l = 0; l < 4; ++l) {
+                for (int k = 0; k < 32; ++k) {
+                    sumi += q8[l*32 + k] * (((xb->qs[k] >> (l*2)) & 3) - 1);
+                }
+            }
+            sumh += (float) sumi * GGML_CPU_FP16_TO_FP32(xb->d);
+        }
+        sumf += sumh * y[i].d;
     }
 
     *s = sumf;

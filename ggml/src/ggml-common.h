@@ -287,6 +287,14 @@ typedef struct {
 } block_tq2_0;
 static_assert(sizeof(block_tq2_0) == sizeof(ggml_half) + QK_K / 4, "wrong tq2_0 block size/padding");
 
+// 2.125 bpw: TQ2_0 layout, one scale per 128 weights
+#define QK_TQ2_0_G128 128
+typedef struct {
+    uint8_t qs[QK_TQ2_0_G128/4]; // byte m holds weights m, m+32, m+64, m+96 (2 bits each)
+    ggml_half d;
+} block_tq2_0_g128;
+static_assert(sizeof(block_tq2_0_g128) == sizeof(ggml_half) + QK_TQ2_0_G128 / 4, "wrong tq2_0_g128 block size/padding");
+
 //
 // Super-block quantization structures
 //

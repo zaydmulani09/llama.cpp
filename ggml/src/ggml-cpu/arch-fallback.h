@@ -373,3 +373,9 @@
 #define ggml_gemm_q8_0_4x4_q8_0_generic ggml_gemm_q8_0_4x4_q8_0
 #define ggml_gemm_q8_0_4x8_q8_0_generic ggml_gemm_q8_0_4x8_q8_0
 #endif
+
+// uno-model TQ2_0_G128: NEON kernel on ARM, AVX2 on x86, generic everywhere else
+#if defined(GGML_CPU_GENERIC) || !(defined(__aarch64__) || defined(__arm__) || defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC) || \
+                                   defined(__x86_64__) || defined(__i386__) || defined(_M_IX86) || defined(_M_X64))
+#define ggml_vec_dot_tq2_0_g128_q8_K_generic ggml_vec_dot_tq2_0_g128_q8_K
+#endif
